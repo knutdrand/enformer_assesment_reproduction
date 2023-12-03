@@ -64,19 +64,12 @@ def extract_seq(gene_table, ch, refpath, filepath):
             seq_size = len(seqR)
             # int(2 * win + 1)
             onehot = np.zeros((nSym, seq_size, len(P_seqs)), dtype='i8')
-
+            seqP = np.concatenate([seqR]*len(P_seqs))
+            seqM = np.concatenate([seqR]*len(P_seqs))
             for k, (P_seq, M_seq) in enumerate(zip(P_seqs, M_seqs)):
-                seqP = seqR.copy()
-                seqM = seqR.copy()
-                seqP[positions] = P_seq
-                seqM[positions] = M_seq
-
-                #seqP[positions] = ''.join(snpP.iloc[:, k + 3].to_list())
-                #seqM[positions] = ''.join(snpM.iloc[:, k + 3].to_list())
-
-                # Convert to one-hot encoding
-                onehot[:, :, k] = [seqP == 'A', seqP == 'T', seqP == 'G', seqP == 'C',
-                                   seqM == 'A', seqM == 'T', seqM == 'G', seqM == 'C']
+                seqP[k, positions] = P_seq
+                seqM[k, positions] = M_seq
+            onehot[:, :, k] = [seqP == 'A', seqP == 'T', seqP == 'G', seqP == 'C', seqM == 'A', seqM == 'T', seqM == 'G', seqM == 'C']
 
         else:
             print('no variants')

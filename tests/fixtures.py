@@ -16,8 +16,8 @@ def genome_folder():
     if os.path.exists('data/hg38/'):
         return genome_folder
     else:
-        os.makedirs('data/hg38/')
-        genome = simulate_genome(23, [1000000 for i in range(23)])
+        os.makedirs('data/hg38/', exist_ok=True)
+        genome = simulate_genome(23, [10000000 for i in range(23)])
         for i in range(len(genome)):
             with bnp.open(f'data/hg38/chr{i}.fa.gz', 'w', buffer_type=bnp.MultiLineFastaBuffer) as f:
                 f.write(genome[i:i+1])
@@ -37,13 +37,13 @@ def gene_list_path():
 
 @pytest.fixture
 def gene_table_path():
-    path = 'data/geneWin100K.txt'
-    if os.path.exists(path):
+    path = 'data/geneWin10K.txt'
+    if False and os.path.exists(path):
         return path
     else:
         table = pd.DataFrame({'gene_id': gene_list, 'chr': list(range(len(gene_list))),
-                              'start': [10000*i for i in range(len(gene_list))],
-                              'end': [10000*i+1000 for i in range(len(gene_list))]})
+                              'start': [100000*(i+1)-10000 for i in range(len(gene_list))],
+                              'end': [100000*(i+1)+10000 for i in range(len(gene_list))]})
         table.to_csv(path, index=False, header=False, sep='\t')
         return path
 
