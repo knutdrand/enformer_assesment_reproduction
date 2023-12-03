@@ -41,10 +41,9 @@ def gene_table_path():
     if os.path.exists(path):
         return path
     else:
-        table= pd.DataFrame({'gene_id': gene_list,
-                             'chr': list(range(len(gene_list))),
-                             'start': [10000*i for i in range(len(gene_list))],
-                             'end': [10000*i+1000 for i in range(len(gene_list))]})
+        table = pd.DataFrame({'gene_id': gene_list, 'chr': list(range(len(gene_list))),
+                              'start': [10000*i for i in range(len(gene_list))],
+                              'end': [10000*i+1000 for i in range(len(gene_list))]})
         table.to_csv(path, index=False, header=False, sep='\t')
         return path
 
