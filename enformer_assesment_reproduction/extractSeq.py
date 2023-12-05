@@ -9,7 +9,7 @@ import sys
 nSym = 8  # ATGCx2 for paternal and maternal
 # nSub = 1161
 nSub = 3
-win = 1e5
+win = 1e4
 winSiz='100K'
 if win == 1e4:
     winSiz = '10K'
@@ -19,6 +19,7 @@ wpl = 50  # Number of words per line in hg38
 
 
 def extract_seq(gene_table, ch, refpath, filepath):
+    print('running')
     gene_table.columns = ['ensg', 'chr', 'winS', 'winE']
     # data = data.sort_values(by='chr',axis=0)
     gene_table = gene_table.loc[gene_table.chr == ch]
@@ -50,7 +51,8 @@ def extract_seq(gene_table, ch, refpath, filepath):
         seqR = np.array(list(ref.replace('\n', '').upper()))
 
         # Check if variants exist
-        specific_filepath = filepath + 'variantNucleotide' + winSiz + '/' + gene_table.iloc[gene_id, 0] + '.csv'
+        #specific_filepath = filepath + 'variantNucleotide' + winSiz + '/' + gene_table.iloc[gene_id, 0] + '.csv'
+        specific_filepath = filepath + '/' + gene_table.iloc[gene_id, 0] + '.csv'
         if os.path.exists(specific_filepath):
             f = open(specific_filepath)
             line = f.readline()
@@ -79,6 +81,7 @@ def extract_seq(gene_table, ch, refpath, filepath):
 
             # Loop over subjects
             onehot = np.zeros((nSym, int(2 * win + 1), nSub), dtype='i8')
+
             for k in np.arange(nSub):
                 seqP = seqR.copy()
                 seqM = seqR.copy()
@@ -111,21 +114,20 @@ def extract_seq(gene_table, ch, refpath, filepath):
         folder = filepath + '/sequence' + winSiz + '/chr' + str(ch) + '/'
         os.makedirs(folder, exist_ok=True)
         sparse.save_npz(folder + gene_table.iloc[gene_id, 0], onehot)
-
+    print('finished')
 
 # Load gene names and windows
 # data = pd.read_csv(filepath+'geneWin'+winSiz+'.txt',sep='\t',header=None)
 if __name__ == '__main__':
-    pittPath = '/bgfs/mchikina/byng/'
-    filepath = pittPath + 'rosmapAD/projects/insilicoMutagenesis/extractSequence/results/'
-    refpath = pittPath + 'humanRefGenome/data/hg38/'
+    # pittPath = '/bgfs/mchikina/byng/'
+    # filepath = pittPath + 'rosmapAD/projects/insilicoMutagenesis/extractSequence/results/'
+    # refpath = pittPath + 'humanRefGenome/data/hg38/'
 
     # Parameters
     # ch = 22 # Select chromosome
-    ch = int(sys.argv[1])
-    gList = sys.argv[2]
-
-
-    gene_file_name = filepath + 'geneWin' + winSiz + gList + '.txt'
+    ch = 1#  = int(sys.argv[1])
+    #gList = sys.argv[2]
+    #gene_file_name = filepath + 'geneWin' + winSiz + gList + '.txt'
+    gene_file_name = 'enformer_assesment_reproduction/tmp.csv'
     data = pd.read_csv(gene_file_name, sep='\s+', header=None)
-    extract_seq(data)
+    extract_seq(data, ch,  refpath='/home/knut/Data/', filepath='data/debug/')

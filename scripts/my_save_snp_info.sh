@@ -7,23 +7,16 @@
 
 base_path=data/
 vcf_path=data/
-save_dir=data/variantNucleotide10K/
+save_dir=data/debug/
 all_rel_genes_path=data/ # save information for these genes
-
-readarray -t all_rel_genes < ${all_rel_genes_path}to_process.txt
-
-# Creates an array from geneWin*K.txt
-ensg=(`cut -f1 ${base_path}geneWin10K.txt`)
-#echo $ensg
-chr=(`cut -f2 ${base_path}geneWin10K.txt`)
-#echo $chr
-winStart=(`cut -f3 ${base_path}geneWin10K.txt`)
-#echo $winStart
-winEnd=(`cut -f4 ${base_path}geneWin10K.txt`)
-#echo $winEnd
-
-# Extract bases for each gene
-for i in ${!ensg[@]} # ! returns the indices and @ returns all elements of an array
+mkdir -p ${save_dir}
+# readarray -t all_rel_genes < ${all_rel_genes_path}to_process.txt
+gene_path='enformer_assesment_reproduction/tmp.csv'
+ensg=(`cut -f1 ${gene_path}`)
+chr=(`cut -f2 ${gene_path}`)
+winStart=(`cut -f3 ${gene_path}`)
+winEnd=(`cut -f4 ${gene_path}`)
+for i in ${!ensg[@]}
 do
 
 start=`date +%s`

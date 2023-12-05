@@ -39,7 +39,7 @@ def save_ref_seqs(win_path, ref_path, save_path):
 
         chrom_len = len(seqR)
 
-        # for relevant genes on this chrom
+        # for relevant genes on this chromm
         rel_genes = gene_win_info[gene_win_info[1] == CHR]
         num_genes = rel_genes.shape[0]
 
