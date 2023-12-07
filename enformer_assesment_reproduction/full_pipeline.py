@@ -1,4 +1,5 @@
 import bionumpy as bnp
+from bionumpy.arithmetics.intervals import clip
 import pandas as pd
 import sparse
 from bionumpy import SequenceEntry
@@ -7,38 +8,45 @@ import numpy as np
 from bionumpy.variants.consensus import apply_variants_to_sequence
 
 
-# genome: bnp.Genome
-    # returns: np.ndarray
 def get_one_hot(genome_filename, variant_filename, annotation_filename):
+    genome = bnp.Genome.from_file(genome_filename)
+    genome, intervals = write_gene_windows(annotation_filename, genome)
+    intervals = bnp.open('tmp.bed', buffer_type=bnp.io.Bed6Buffer, lazy=False).read()
+    map_vcf(genome.get_intervals(intervals), variant_filename)
+    variants = bnp.open('tmp.vcf', buffer_type=bnp.io.vcf_buffers.VCFBuffer2, lazy=False).read_chunk()
+    write_one_hot(genome, intervals, variants)
+
+
+def write_gene_windows(annotation_filename, genome):
     genes_iter = (chunk.get_genes() for chunk in bnp.open(annotation_filename, lazy=False).read_chunks())
-    intervals = np.concatenate([bnp.datatypes.Bed6(genes.chromosome, genes.start, genes.stop, genes.gene_id, [0]*len(genes), ['+']*len(genes)) for genes in genes_iter])[::50]
-    print('Reading intervals')
-    # intervals = bnp.open('tmp.bed', buffer_type=bnp.io.Bed6Buffer, lazy=False).read()[::10]
-    intervals.start = intervals.start - 10000
-    intervals.stop = intervals.start + 10000+1
+    intervals = np.concatenate([bnp.datatypes.Bed6(genes.chromosome, genes.start, genes.stop, genes.gene_id,
+                                                   [0] * len(genes), genes.strand) for genes in genes_iter])[::50]
+    flank = 10000
+
+    intervals.stop = intervals.start + flank + 1
+    intervals.start = intervals.start - flank
     bnp.open('tmp.bed', 'w').write(intervals)
     df = intervals.topandas()
-    new_df = pd.DataFrame({'ensg': df['name'], 'chr': [s[3:] for s in df['chromosome']], 'winS': df['start'], 'winE': df['stop']})
+    new_df = pd.DataFrame(
+        {'ensg': df['name'], 'chr': [s[3:] for s in df['chromosome']], 'winS': df['start'], 'winE': df['stop']})
     new_df.to_csv('tmp.csv', index=False, header=False, sep='\t')
-    print('Reading genome')
-    genome = bnp.Genome.from_file(genome_filename)
-    # genomic_intervals= genome.get_intervals(intervals)
-    # with bnp.open('tmp.vcf', 'w') as out:
-    #     for i, variants in enumerate(bnp.open(variant_filename, buffer_type=bnp.io.vcf_buffers.VCFBuffer2).read_chunks(min_chunk_size=1000000)):
-    #         print(f'Reading chunk {i}')
-    #         locations = genomic_intervals.map_locations(bnp.replace(variants, chromosome=bnp.as_encoded_array(
-    #             ['chr' + c for c in variants.chromosome.tolist()])))
-    #         out.write(locations)
-    print('Reading variants')
-    variants = bnp.open('tmp.vcf', buffer_type=bnp.io.vcf_buffers.VCFBuffer2, lazy=False).read_chunk()
-    print('Filtering variants')
-    variants = variants[(variants.ref_seq.lengths == 1) & (variants.alt_seq.lengths == 1)]
+    genomic_intervals = genome.get_intervals(intervals)
+    genomic_intervals = genomic_intervals.clip()
+    intervals = genomic_intervals.data
+    intervals = intervals[intervals.stop - intervals.start == 2 * flank + 1]
+    bnp.open('tmp.bed', 'w').write(intervals)
+    return genome, intervals
 
-#    print(variants)
-#    print(intervals)
-    print('Getting sequences')
-    write_one_hot(genome, intervals, variants)
-    # write_new_sequences(genome, intervals, variants)
+
+def map_vcf(genomic_intervals, variant_filename):
+    with bnp.open('tmp.vcf', 'w') as out:
+        for i, variants in enumerate(
+            bnp.open(variant_filename, buffer_type=bnp.io.vcf_buffers.VCFBuffer2).read_chunks(min_chunk_size=1000000)):
+            print(f'Reading chunk {i}')
+            variants = variants[(variants.ref_seq.lengths == 1) & (variants.alt_seq.lengths == 1)]
+            locations = genomic_intervals.map_locations(bnp.replace(variants, chromosome=bnp.as_encoded_array(
+                ['chr' + c for c in variants.chromosome.tolist()])))
+            out.write(locations)
 
 
 def sparse_one_hot(paternal_sequences, maternal_sequences):
@@ -46,26 +54,33 @@ def sparse_one_hot(paternal_sequences, maternal_sequences):
         print(np.sum(paternal_sequences=='n'), np.sum(maternal_sequences=='n'))
     n_seq = len(paternal_sequences)
     seq_l = len(paternal_sequences[0])
-    row_indices = np.arange(n_seq).repeat(seq_l*2)
-    col_indices = np.tile(np.repeat(np.arange(seq_l), 2), n_seq)
-    data = np.hstack([paternal_sequences.raw().ravel().reshape(-1, 1), maternal_sequences.raw().ravel().reshape(-1, 1)]).ravel()
-    return sparse.COO((data, (row_indices, col_indices)), shape=(n_seq, seq_l))
+    subject_indices = np.arange(n_seq).repeat(seq_l*2)
+    position_index = np.tile(np.repeat(np.arange(seq_l), 2), n_seq)
+    one_hot_indices = np.hstack([paternal_sequences.raw().ravel().reshape(-1, 1),
+                                 maternal_sequences.raw().ravel().reshape(-1, 1)+4]).ravel()
+    return sparse.COO(data=np.full(subject_indices.size, 1), coords=(one_hot_indices, position_index, subject_indices))
 
 
 def write_one_hot(genome, intervals, all_variants):
     reference = genome.read_sequence()
     for i in range(len(intervals)):
-        print(f'Running interval {i} of {len(intervals)}: {intervals[i].name}')
         interval = intervals[i:i+1]
         sequence = reference[interval][0]
+        if np.any(sequence=='n'):
+            print(f'Skipping interval {i} of {len(intervals)}: {intervals[i].name}')
+            continue
         variants = all_variants[all_variants.chromosome == interval.name]
-        maternal_mask = (variants.genotype == b'0|1') | (variants.genotype == b'1|1')
-        paternal_mask = (variants.genotype == b'1|0') | (variants.genotype == b'1|1')
-        maternal_sequences = []
-        paternal_sequences = []
-        for sample_id in range(10):#variants.genotype.shape[1]):
-            maternal_sequences.append(apply_variants_to_sequence(sequence, variants[maternal_mask[:,i]]))
-            paternal_sequences.append(apply_variants_to_sequence(sequence, variants[paternal_mask[:,i]]))
+        if (not len(variants)) or np.all(variants.genotype[:, 3] == b'0|0'):
+            paternal_sequences = [sequence for _ in range(3)]
+            maternal_sequences = [sequence for _ in range(3)]
+        else:
+            maternal_mask = (variants.genotype == b'0|1') | (variants.genotype == b'1|1')
+            paternal_mask = (variants.genotype == b'1|0') | (variants.genotype == b'1|1')
+            maternal_sequences = []
+            paternal_sequences = []
+            for sample_id in range(3):
+                maternal_sequences.append(apply_variants_to_sequence(sequence, variants[maternal_mask[:, i]]))
+                paternal_sequences.append(apply_variants_to_sequence(sequence, variants[paternal_mask[:, i]]))
         one_hot = sparse_one_hot(bnp.as_encoded_array(paternal_sequences), bnp.as_encoded_array(maternal_sequences))
         sparse.save_npz(f'{interval.name}.npz', one_hot)
 

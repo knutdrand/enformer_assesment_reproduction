@@ -22,7 +22,7 @@ def extract_seq(gene_table, ch, refpath, filepath):
     print('running')
     gene_table.columns = ['ensg', 'chr', 'winS', 'winE']
     # data = data.sort_values(by='chr',axis=0)
-    gene_table = gene_table.loc[gene_table.chr == ch]
+    gene_table = gene_table.loc[gene_table.chr == str(ch)]
     nGene = len(gene_table.index)
     # Loop through genes
     for gene_id in np.arange(nGene):
@@ -128,6 +128,6 @@ if __name__ == '__main__':
     ch = 1#  = int(sys.argv[1])
     #gList = sys.argv[2]
     #gene_file_name = filepath + 'geneWin' + winSiz + gList + '.txt'
-    gene_file_name = 'enformer_assesment_reproduction/tmp.csv'
+    gene_file_name = '../enformer_assesment_reproduction/tmp.csv'
     data = pd.read_csv(gene_file_name, sep='\s+', header=None)
-    extract_seq(data, ch,  refpath='/home/knut/Data/', filepath='data/debug/')
+    extract_seq(data, ch,  refpath='/home/knut/Data/', filepath='../data/debug/')
