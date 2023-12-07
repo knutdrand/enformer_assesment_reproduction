@@ -10,10 +10,10 @@ from bionumpy.variants.consensus import apply_variants_to_sequence
 
 def get_one_hot(genome_filename, variant_filename, annotation_filename):
     genome = bnp.Genome.from_file(genome_filename)
-    genome, intervals = write_gene_windows(annotation_filename, genome)
+    #genome, intervals = write_gene_windows(annotation_filename, genome)
     intervals = bnp.open('tmp.bed', buffer_type=bnp.io.Bed6Buffer, lazy=False).read()
-    map_vcf(genome.get_intervals(intervals), variant_filename)
-    variants = bnp.open('tmp.vcf', buffer_type=bnp.io.vcf_buffers.VCFBuffer2, lazy=False).read_chunk()
+    # map_vcf(genome.get_intervals(intervals), variant_filename)
+    variants = bnp.open('tmp.vcf', buffer_type=bnp.io.vcf_buffers.VCFBuffer2).read_chunk()
     write_one_hot(genome, intervals, variants)
 
 
