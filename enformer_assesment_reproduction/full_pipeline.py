@@ -8,41 +8,55 @@ import numpy as np
 from bionumpy.variants.consensus import apply_variants_to_sequence
 
 
-def get_one_hot(genome_filename, variant_filename, annotation_filename):
+def get_one_hot(genome_filename, variant_filename, annotation_filename, gene_list_name='gene_list.txt'):
     genome = bnp.Genome.from_file(genome_filename)
-    #genome, intervals = write_gene_windows(annotation_filename, genome)
-    intervals = bnp.open('tmp.bed', buffer_type=bnp.io.Bed6Buffer, lazy=False).read()
-    # map_vcf(genome.get_intervals(intervals), variant_filename)
+    intervals = write_gene_windows(annotation_filename, genome, gene_list_name)
+    # intervals = bnp.open('tmp.bed', buffer_type=bnp.io.Bed6Buffer, lazy=False).read()
+    map_vcf(genome.get_intervals(intervals), variant_filename)
     variants = bnp.open('tmp.vcf', buffer_type=bnp.io.vcf_buffers.VCFBuffer2).read_chunk()
     write_one_hot(genome, intervals, variants)
 
 
-def write_gene_windows(annotation_filename, genome):
-    genes_iter = (chunk.get_genes() for chunk in bnp.open(annotation_filename, lazy=False).read_chunks())
-    intervals = np.concatenate([bnp.datatypes.Bed6(genes.chromosome, genes.start, genes.stop, genes.gene_id,
-                                                   [0] * len(genes), genes.strand) for genes in genes_iter])[::50]
-    flank = 10000
+def get_genes(annotation_file_name, gene_list_name):
+    gene_names = open(gene_list_name).read().strip().split()
+    for chunk in bnp.open(annotation_file_name).read_chunks():
+        genes = chunk.get_genes()
+        mask = np.isin(genes.gene_id, gene_names)
 
+
+def write_gene_windows(annotation_filename, genome, gene_list_name, out_filename='tmp.bed'):
+    gene_names = open(gene_list_name).read().strip().split()
+    genes_iter = (chunk.get_genes() for chunk in bnp.open(annotation_filename, lazy=False).read_chunks())
+    genes_iter = (genes[np.isin(genes.gene_id, gene_names)] for genes in genes_iter)
+    intervals = np.concatenate([bnp.datatypes.Bed6(genes.chromosome, genes.start, genes.stop, genes.gene_id,
+                                                   np.zeros(len(genes), dtype=int), genes.strand) for genes in genes_iter])
+    flank = 10000
     intervals.stop = intervals.start + flank + 1
     intervals.start = intervals.start - flank
-    bnp.open('tmp.bed', 'w').write(intervals)
-    df = intervals.topandas()
-    new_df = pd.DataFrame(
-        {'ensg': df['name'], 'chr': [s[3:] for s in df['chromosome']], 'winS': df['start'], 'winE': df['stop']})
-    new_df.to_csv('tmp.csv', index=False, header=False, sep='\t')
+    bnp.open(out_filename, 'w').write(intervals)
     genomic_intervals = genome.get_intervals(intervals)
     genomic_intervals = genomic_intervals.clip()
     intervals = genomic_intervals.data
     intervals = intervals[intervals.stop - intervals.start == 2 * flank + 1]
-    bnp.open('tmp.bed', 'w').write(intervals)
-    return genome, intervals
+    bnp.open(out_filename, 'w').write(intervals)
+    return intervals
+
+
+def convert_bed_to_csv(bed_filename, csv_filename='tmp.csv'):
+    intervals = bnp.read(bed_filename, buffer_type=bnp.io.Bed6Buffer)
+    df = intervals.topandas()
+    new_df = pd.DataFrame(
+        {'ensg': df['name'],
+         'chr': [s[3:] for s in df['chromosome']],
+         'winS': df['start'],
+         'winE': df['stop']})
+    new_df.to_csv(csv_filename, index=False, header=False, sep='\t')
 
 
 def map_vcf(genomic_intervals, variant_filename):
     with bnp.open('tmp.vcf', 'w') as out:
         for i, variants in enumerate(
             bnp.open(variant_filename, buffer_type=bnp.io.vcf_buffers.VCFBuffer2).read_chunks(min_chunk_size=1000000)):
-            print(f'Reading chunk {i}')
             variants = variants[(variants.ref_seq.lengths == 1) & (variants.alt_seq.lengths == 1)]
             locations = genomic_intervals.map_locations(bnp.replace(variants, chromosome=bnp.as_encoded_array(
                 ['chr' + c for c in variants.chromosome.tolist()])))
@@ -99,5 +113,8 @@ def write_new_sequences(genome, intervals, variants):
 
 
 if __name__ == '__main__':
-    get_one_hot('/home/knut/Data/hg38.fa', '/home/knut/Data/variants.vcf.gz', '/home/knut/Data/gencode.v43.annotation.gff3.gz')
+    get_one_hot('/home/knut/Data/hg38.fa',
+                '/home/knut/Data/variants.vcf.gz',
+                '/home/knut/Data/gencode.v43.annotation.gff3.gz',
+                'gene_list.txt')
 
