@@ -5,10 +5,10 @@ import numpy as np
 import typer
 
 
-def main(genome_filename: str, variant_filename: str, annotation_filename: str, gene_list_name: str, out_folder: str):
+def get_one_hot(genome_filename: str, variant_filename: str, annotation_filename: str, gene_list_name: str, out_folder: str, flank: int = 10000):
     genome = bnp.Genome.from_file(genome_filename)
     gene_names = open(gene_list_name).read().strip().split()
-    intervals = get_tss_windows(bnp.open(annotation_filename).read_chunks(), gene_names)
+    intervals = get_tss_windows(bnp.open(annotation_filename).read_chunks(), gene_names, flank=flank)
     variants = map_vcf(genome.get_intervals(intervals),
                        bnp.open(variant_filename, buffer_type=bnp.io.vcf_buffers.VCFBuffer2).read_chunks(
                            min_chunk_size=1000000))
@@ -59,9 +59,5 @@ def write_one_hot(genome: bnp.Genome, intervals: bnp.Bed6, all_variants: bnp.dat
         sparse.save_npz(f'{out_folder}/{interval.name}.npz', one_hot)
 
 
-if __name__ == '__main__':
-    typer.run(main)
-    #get_one_hot('/home/knut/Data/hg38.fa',
-    #'/home/knut/Data/variants_cut.vcf.gz',
-    #           '/home/knut/Data/gencode.v43.annotation.gff3.gz',
-    #           'gene_list.txt')
+def main():
+    typer.run(get_one_hot)

@@ -5,7 +5,7 @@ import numpy as np
 from bionumpy import SequenceEntry
 from bionumpy.variants import apply_variants
 
-from enformer_assesment_reproduction.full_pipeline import get_tss_windows
+from enformer_assesment_reproduction.cli import get_tss_windows
 
 
 def write_new_sequences(genome, intervals, variants):
