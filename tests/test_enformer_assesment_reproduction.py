@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-from pathlib import PurePath
-
-import bionumpy as bnp
-import pandas as pd
 
 from enformer_assesment_reproduction.save_ref_seqs import save_ref_seqs, save_ref_seqs_new
 from .fixtures import *
-from enformer_assesment_reproduction.extractSeq import extract_seq
-from enformer_assesment_reproduction.extract_seq_new import extract_seq as extract_seq_new
+from enformer_assesment_reproduction._legacy_code.extractSeq import extract_seq
+from enformer_assesment_reproduction._legacy_code.extract_seq_new import extract_seq as extract_seq_new
 
 
 def test_save_snp_info(variants_path, gene_list_path, gene_table_path):

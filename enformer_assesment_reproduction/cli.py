@@ -1,3 +1,4 @@
+import os
 from typing import Iterable, List
 import bionumpy as bnp
 import sparse
@@ -47,6 +48,7 @@ def sparse_one_hot(paternal_sequences: bnp.EncodedRaggedArray, maternal_sequence
 
 
 def write_one_hot(genome: bnp.Genome, intervals: bnp.Bed6, all_variants: bnp.datatypes.VCFEntry, out_folder: str = ''):
+    os.makedirs(out_folder, exist_ok=True)
     reference = genome.read_sequence()
     for gene_idx in range(len(intervals)):
         interval = intervals[gene_idx:gene_idx + 1]
