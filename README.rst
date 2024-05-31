@@ -22,6 +22,7 @@ Writes the one-hot-encoded sequences in the same format as EnformerAsssesment.
     $ pip install .
     $ cd Data
     $ chmod +x get_data.sh
+    $ ./get_data.sh
     $ enformer_assesment_reproduction hg38.fa variants_cut.vcf.gz genocde.v45.gff.gz  gene_list.txt output/ --flank 10000
 
 All code can be found here: `Code <enformer_assesment_reproduction/cli.py>`_
